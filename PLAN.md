@@ -105,26 +105,17 @@ Idempotent seed in `backend/app/core/db.py` (`init_db` / `prestart`):
 
 ---
 
-## Phase 5 — Frontend RBAC
+## Phase 5 — Frontend RBAC ✅
 
-1. Regenerate OpenAPI client after backend schema changes (or manually extend types if regeneration is awkward in Docker).
-2. Extend current-user payload usage:
-   - Backend `UserPublic` / me response includes `role` and `permissions: string[]` (computed server-side from the policy map — Decision 3B).
-3. Add a thin frontend helper, e.g. `can(user, "users:list")` reading `user.permissions`.
-4. Navigation (`AppSidebar`):
-   - Show Admin / Users only if `users:list` (and create button if `users:create`).
-   - Show Metrics if `metrics:read`.
-   - Show System Settings if `settings:write` (or read, if exposed).
-5. Route guards (TanStack Router `beforeLoad`):
-   - Unauthorized → dedicated **Access Denied / Forbidden** page (friendly, not silent fail).
-6. Admin UI:
-   - Replace “Is superuser?” with role select (`admin` / `manager` / `member`).
-   - Hide create/edit/delete actions the current user cannot perform.
-7. New pages (stubs OK):
-   - Metrics / Insights
-   - System Settings (admin-only)
+1. [x] Regenerated OpenAPI client (`frontend/openapi.json` + `bun run generate-client`).
+2. [x] `UserPublic` includes `role` + `permissions[]` (server-populated from `ROLE_PERMISSIONS`).
+3. [x] Frontend `can()` helper in `frontend/src/lib/permissions.ts`.
+4. [x] Sidebar: Admin / Metrics / System Settings gated by permissions.
+5. [x] Route guards → `/forbidden` (Access Denied) for admin, metrics, system-settings.
+6. [x] Admin UI: role select; Add User / edit / delete gated by permissions.
+7. [x] Pages: `/metrics`, `/system-settings`, `/forbidden`.
 
-**Deliverable:** UI matches the matrix; deep-linking to forbidden routes shows Access Denied; API remains the real gate.
+**Deliverable:** UI matches the matrix; deep links show Access Denied; API remains the gate. Done.
 
 ---
 

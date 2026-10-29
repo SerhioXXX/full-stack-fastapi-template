@@ -123,6 +123,26 @@ export type Message = {
 };
 
 /**
+ * MetricsPublic
+ *
+ * Lightweight insights payload for the metrics page.
+ */
+export type MetricsPublic = {
+    /**
+     * Total Users
+     */
+    total_users: number;
+    /**
+     * Active Users
+     */
+    active_users: number;
+    /**
+     * Total Items
+     */
+    total_items: number;
+};
+
+/**
  * NewPassword
  */
 export type NewPassword = {
@@ -156,6 +176,49 @@ export type PrivateUserCreate = {
      * Is Verified
      */
     is_verified?: boolean;
+};
+
+/**
+ * Role
+ */
+export type Role = 'admin' | 'manager' | 'member';
+
+/**
+ * SystemSettings
+ *
+ * In-memory global settings stub (not persisted).
+ */
+export type SystemSettings = {
+    /**
+     * Site Name
+     */
+    site_name?: string;
+    /**
+     * Maintenance Mode
+     */
+    maintenance_mode?: boolean;
+    /**
+     * Support Email
+     */
+    support_email?: string | null;
+};
+
+/**
+ * SystemSettingsUpdate
+ */
+export type SystemSettingsUpdate = {
+    /**
+     * Site Name
+     */
+    site_name?: string | null;
+    /**
+     * Maintenance Mode
+     */
+    maintenance_mode?: boolean | null;
+    /**
+     * Support Email
+     */
+    support_email?: string | null;
 };
 
 /**
@@ -202,6 +265,7 @@ export type UserCreate = {
      * Is Superuser
      */
     is_superuser?: boolean;
+    role?: Role;
     /**
      * Full Name
      */
@@ -228,6 +292,7 @@ export type UserPublic = {
      * Is Superuser
      */
     is_superuser?: boolean;
+    role?: Role;
     /**
      * Full Name
      */
@@ -240,6 +305,10 @@ export type UserPublic = {
      * Created At
      */
     created_at?: string | null;
+    /**
+     * Permissions
+     */
+    permissions?: Array<string>;
 };
 
 /**
@@ -276,6 +345,7 @@ export type UserUpdate = {
      * Is Superuser
      */
     is_superuser?: boolean | null;
+    role?: Role | null;
     /**
      * Full Name
      */
@@ -920,6 +990,63 @@ export type itemsUpdateItemResponses = {
 };
 
 export type itemsUpdateItemResponse = itemsUpdateItemResponses[keyof itemsUpdateItemResponses];
+
+export type metricsReadMetricsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/metrics/';
+};
+
+export type metricsReadMetricsResponses = {
+    /**
+     * Successful Response
+     */
+    200: MetricsPublic;
+};
+
+export type metricsReadMetricsResponse = metricsReadMetricsResponses[keyof metricsReadMetricsResponses];
+
+export type settingsReadSystemSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/system';
+};
+
+export type settingsReadSystemSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SystemSettings;
+};
+
+export type settingsReadSystemSettingsResponse = settingsReadSystemSettingsResponses[keyof settingsReadSystemSettingsResponses];
+
+export type settingsPatchSystemSettingsData = {
+    body: SystemSettingsUpdate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/system';
+};
+
+export type settingsPatchSystemSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type settingsPatchSystemSettingsError = settingsPatchSystemSettingsErrors[keyof settingsPatchSystemSettingsErrors];
+
+export type settingsPatchSystemSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SystemSettings;
+};
+
+export type settingsPatchSystemSettingsResponse = settingsPatchSystemSettingsResponses[keyof settingsPatchSystemSettingsResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;

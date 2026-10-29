@@ -2,6 +2,7 @@ from sqlmodel import Session, create_engine, select
 
 from app import crud
 from app.core.config import settings
+from app.core.security import get_password_hash, verify_password
 from app.models import Role, User, UserCreate
 
 engine = create_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
@@ -38,6 +39,7 @@ def _ensure_user(
     role: Role,
     full_name: str | None = None,
 ) -> User:
+    """Create demo user if missing; restore role/password if drift (e.g. after tests)."""
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
         return crud.create_user(
@@ -50,11 +52,23 @@ def _ensure_user(
             ),
         )
 
+    changed = False
     if user.role != role or user.is_superuser != (role == Role.ADMIN):
         user.role = role
         user.is_superuser = role == Role.ADMIN
-        if full_name and not user.full_name:
-            user.full_name = full_name
+        changed = True
+    if full_name and user.full_name != full_name:
+        user.full_name = full_name
+        changed = True
+    if not user.is_active:
+        user.is_active = True
+        changed = True
+    password_ok, _ = verify_password(password, user.hashed_password)
+    if not password_ok:
+        user.hashed_password = get_password_hash(password)
+        changed = True
+
+    if changed:
         session.add(user)
         session.commit()
         session.refresh(user)

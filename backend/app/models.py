@@ -2,7 +2,9 @@ import uuid
 from datetime import UTC, datetime
 from enum import Enum
 
-from pydantic import EmailStr
+from typing import Self
+
+from pydantic import EmailStr, model_validator
 from sqlalchemy import Column, Enum as SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -113,6 +115,17 @@ class User(UserBase, table=True):
 class UserPublic(UserBase):
     id: uuid.UUID
     created_at: datetime | None = None
+    permissions: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def populate_permissions(self) -> Self:
+        # Lazy import avoids circular dependency with app.core.rbac.
+        from app.core.rbac import permissions_for
+
+        object.__setattr__(
+            self, "permissions", sorted(permissions_for(self.role))
+        )
+        return self
 
 
 class UsersPublic(SQLModel):
