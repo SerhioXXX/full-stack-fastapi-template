@@ -87,19 +87,21 @@ Also done:
 
 ---
 
-## Phase 4 — Seed test users
+## Phase 4 — Seed test users ✅
 
-Extend initial data / a small seed script so reviewers can log in as each role:
+Idempotent seed in `backend/app/core/db.py` (`init_db` / `prestart`):
 
-| Email (example) | Role | Purpose |
-|-----------------|------|---------|
-| `admin@example.com` | admin | Full access (existing first superuser) |
-| `manager@example.com` | manager | List users + metrics; no create/settings |
-| `member@example.com` | member | Own profile only for sensitive areas |
+| Email | Password | Role | Purpose |
+|-------|----------|------|---------|
+| `admin@example.com` (`FIRST_SUPERUSER`) | `changethis` | admin | Full access |
+| `manager@example.com` | `changethis` | manager | List users + metrics; no create/settings |
+| `member@example.com` | `changethis` | member | Own profile only for sensitive areas |
 
-Document passwords in README (dev-only). Prefer idempotent seed (create if missing).
+- [x] Create-if-missing; sync role if account already exists with wrong role.
+- [x] Covered by `tests/core/test_seed_users.py`.
+- [ ] Document in README (Phase 7).
 
-**Deliverable:** Three ready accounts after `prestart` / seed.
+**Deliverable:** Three ready accounts after `prestart` / seed. Done.
 
 ---
 
