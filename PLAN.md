@@ -65,23 +65,25 @@ Notes:
 
 ---
 
-## Phase 3 — Protect API surface
+## Phase 3 — Protect API surface ✅
 
-| Area | Endpoints / behavior |
-|------|----------------------|
-| List users | `GET /users/` → `users:list` |
-| Create user | `POST /users/` → `users:create` (accept `role` with safe defaults; only admin can assign elevated roles) |
-| Update / delete user | `PATCH/DELETE /users/{id}` → `users:update` / `users:delete` |
-| Own profile | `GET/PATCH /users/me`, password change → authenticated user only |
-| Metrics | New stub router e.g. `GET /metrics/` or `/insights/` → `metrics:read` (simple JSON stub is enough) |
-| System settings | New stub e.g. `GET/PATCH /settings/system` → `settings:write` (or read+write split if useful) |
+| Area | Endpoint | Permission |
+|------|----------|------------|
+| List users | `GET /users/` | `users:list` |
+| Create user | `POST /users/` | `users:create` (admin may set `role`) |
+| Update / delete user | `PATCH/DELETE /users/{id}` | `users:update` / `users:delete` |
+| Own profile | `GET/PATCH /users/me`, password | authenticated / `profile:update` |
+| Metrics | `GET /metrics/` | `metrics:read` (live counts stub) |
+| System settings | `GET/PATCH /settings/system` | `settings:write` (in-memory stub) |
 
-Also:
+Also done:
 
-- Ensure public routes (login, register, password recovery, health) stay public.
-- Items ownership rules can stay as-is unless they conflict; do not expand scope into a full item RBAC redesign unless needed for consistency.
+- [x] Public signup always forces `role=member` (ignores elevated payload fields).
+- [x] Public routes (login, register, recovery, health) unchanged.
+- [x] Items ownership still legacy `is_superuser`.
+- [x] API tests for metrics/settings allow/deny + role create/signup hardening.
 
-**Deliverable:** Unauthorized callers get `403` with clear detail; authorized callers succeed.
+**Deliverable:** Unauthorized callers get `403`; authorized callers succeed. Done.
 
 ---
 

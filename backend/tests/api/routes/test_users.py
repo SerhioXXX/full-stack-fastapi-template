@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app import crud
 from app.core.config import settings
 from app.core.security import verify_password
-from app.models import User, UserCreate
+from app.models import Role, User, UserCreate
 from tests.utils.user import create_random_user
 from tests.utils.utils import random_email, random_lower_string
 
@@ -519,3 +519,65 @@ def test_delete_user_without_privileges(
     )
     assert r.status_code == 403
     assert r.json()["detail"] == "The user doesn't have enough privileges"
+
+
+def test_create_user_with_role_as_admin(
+    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+) -> None:
+    username = random_email()
+    password = random_lower_string()
+    data = {
+        "email": username,
+        "password": password,
+        "role": Role.MANAGER.value,
+    }
+    r = client.post(
+        f"{settings.API_V1_STR}/users/",
+        headers=superuser_token_headers,
+        json=data,
+    )
+    assert r.status_code == 200
+    created = r.json()
+    assert created["role"] == Role.MANAGER.value
+    assert created["is_superuser"] is False
+    user = crud.get_user_by_email(session=db, email=username)
+    assert user
+    assert user.role == Role.MANAGER
+
+
+def test_create_user_forbidden_for_normal_user(
+    client: TestClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    data = {
+        "email": random_email(),
+        "password": random_lower_string(),
+    }
+    r = client.post(
+        f"{settings.API_V1_STR}/users/",
+        headers=normal_user_token_headers,
+        json=data,
+    )
+    assert r.status_code == 403
+
+
+def test_register_user_always_member(client: TestClient, db: Session) -> None:
+    username = random_email()
+    password = random_lower_string()
+    r = client.post(
+        f"{settings.API_V1_STR}/users/signup",
+        json={
+            "email": username,
+            "password": password,
+            "full_name": "Signup User",
+            "role": Role.ADMIN.value,
+            "is_superuser": True,
+        },
+    )
+    assert r.status_code == 200
+    created = r.json()
+    assert created["role"] == Role.MEMBER.value
+    assert created["is_superuser"] is False
+    user = crud.get_user_by_email(session=db, email=username)
+    assert user
+    assert user.role == Role.MEMBER
+    assert user.is_superuser is False

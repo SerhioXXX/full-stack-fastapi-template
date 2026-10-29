@@ -178,3 +178,25 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class MetricsPublic(SQLModel):
+    """Lightweight insights payload for the metrics page."""
+
+    total_users: int
+    active_users: int
+    total_items: int
+
+
+class SystemSettings(SQLModel):
+    """In-memory global settings stub (not persisted)."""
+
+    site_name: str = Field(default="Full Stack FastAPI Project", max_length=255)
+    maintenance_mode: bool = False
+    support_email: EmailStr | None = None
+
+
+class SystemSettingsUpdate(SQLModel):
+    site_name: str | None = Field(default=None, max_length=255)
+    maintenance_mode: bool | None = None
+    support_email: EmailStr | None = None

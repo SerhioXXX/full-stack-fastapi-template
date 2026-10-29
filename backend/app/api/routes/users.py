@@ -162,7 +162,14 @@ def register_user(session: SessionDep, user_in: UserRegister) -> Any:
             status_code=400,
             detail="The user with this email already exists in the system",
         )
-    user_create = UserCreate.model_validate(user_in)
+    # Public signup always creates a member; ignore any elevated fields.
+    user_create = UserCreate(
+        email=user_in.email,
+        password=user_in.password,
+        full_name=user_in.full_name,
+        role=Role.MEMBER,
+        is_superuser=False,
+    )
     user = crud.create_user(session=session, user_create=user_create)
     return user
 
