@@ -22,6 +22,8 @@ def db() -> Generator[Session]:
         statement = delete(User)
         session.execute(statement)
         session.commit()
+        # Restore demo seed users so the shared local DB stays usable after tests.
+        init_db(session)
 
 
 @pytest.fixture(scope="module")

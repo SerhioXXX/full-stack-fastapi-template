@@ -119,20 +119,20 @@ Idempotent seed in `backend/app/core/db.py` (`init_db` / `prestart`):
 
 ---
 
-## Phase 6 — Tests
+## Phase 6 — Tests ✅
 
-Focused backend tests (quality over quantity), covering at least:
+Focused suite in `backend/tests/api/routes/test_rbac.py` (+ helpers in `tests/utils/user.py`):
 
-1. Member **cannot** `GET /users/` → `403`
-2. Manager **can** `GET /users/` → `200`, **cannot** `POST /users/` → `403`
-3. Admin **can** create user / access system settings
-4. Member **can** update own profile; **cannot** update another user
-5. Manager **can** `GET` metrics; member **cannot**
-6. (Optional) Denied attempt is logged / permission list on `/users/me` matches role
+1. [x] Member cannot `GET /users/` → `403`
+2. [x] Manager can `GET /users/` → `200`, cannot `POST /users/` → `403`
+3. [x] Admin can create user + access system settings
+4. [x] Member can update own profile; cannot update another user → `403`
+5. [x] Manager can `GET /metrics/`; member cannot → `403`
+6. [x] `/users/me` `permissions[]` matches `ROLE_PERMISSIONS` for every role
+7. [x] Manager cannot access system settings → `403`
+8. [x] `conftest` re-seeds demo users after teardown (shared local DB stays usable)
 
-Reuse existing pytest fixtures/patterns under `backend/app/tests/`.
-
-**Deliverable:** Critical allow/deny paths green in CI / `docker compose` test run.
+**Deliverable:** Critical allow/deny paths green. Done (`15 passed` with related suites).
 
 ---
 
