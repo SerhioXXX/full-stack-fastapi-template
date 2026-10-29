@@ -136,30 +136,23 @@ Focused suite in `backend/tests/api/routes/test_rbac.py` (+ helpers in `tests/ut
 
 ---
 
-## Phase 7 — Documentation & submission
+## Phase 7 — Documentation & submission ✅
 
-Update root `README.md` (or a clear RBAC section) with:
+Required docs:
 
-- How to run locally (Docker Compose path we use)
-- Permission matrix
-- Short architecture explanation (where checks live, how roles are stored, how frontend gets capabilities)
-- How to seed / use test users
-- How to run migrations and tests
-
-Optional extras (do if time allows; not required to “finish”):
-
-- `NOTES.md` — trade-offs and follow-ups
-- 1–2 ADRs (can largely point at `DECISION.md`)
-- Mermaid diagram of authn → authz → handler
-- Logging of denied access (if not already in Phase 2)
+- [x] Root [`README.md`](./README.md) — Docker run, seed users, matrix, architecture, migrations, tests
+- [x] Original template README kept as [`README_FastApi.md`](./README_FastApi.md)
+- [x] [`NOTES.md`](./NOTES.md) — trade-offs and follow-ups
+- [x] ADRs + diagram under [`docs/adr/`](./docs/adr/)
+- [x] Denial logging already in Phase 2 (`require_permission`)
 
 Submission checklist from `TASK.md`:
 
-- [ ] Working RBAC code
-- [ ] Backend tests for critical authz scenarios
-- [ ] Updated README
-- [ ] PR or repo link with commit history
-- [ ] Optional `NOTES.md`
+- [x] Working RBAC code
+- [x] Backend tests for critical authorization scenarios
+- [x] Updated README
+- [ ] PR or repo link with commit history *(create when ready to submit)*
+- [x] Optional `NOTES.md`
 
 ---
 

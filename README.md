@@ -1,87 +1,158 @@
-# Full Stack FastAPI Template
+# Full Stack FastAPI Template — RBAC
 
-[![Test Docker Compose](../../actions/workflows/test-docker-compose.yml/badge.svg)](../../actions/workflows/test-docker-compose.yml)
-[![Test Backend](../../actions/workflows/test-backend.yml/badge.svg)](../../actions/workflows/test-backend.yml)
+Role-based access control (RBAC) on top of the [Full Stack FastAPI Template](https://github.com/fastapi/full-stack-fastapi-template).
 
-## Technology Stack and Features
+This repository implements the assignment in [`TASK.md`](./TASK.md). Planning and design notes live in [`PLAN.md`](./PLAN.md) and [`DECISION.md`](./DECISION.md).
 
-- ⚡ [**FastAPI**](https://fastapi.tiangolo.com) for the Python backend API.
-  - 🧰 [SQLModel](https://sqlmodel.tiangolo.com) for the Python SQL database interactions (ORM).
-  - 🔍 [Pydantic](https://docs.pydantic.dev), used by FastAPI, for the data validation and settings management.
-  - 💾 [PostgreSQL](https://www.postgresql.org) as the SQL database.
-- 🚀 [React](https://react.dev) for the frontend.
-  - 🧩 Built into the backend application and served by FastAPI on the same domain as the API.
-  - 💃 Using TypeScript, hooks, [Vite](https://vitejs.dev), and other parts of a modern frontend stack.
-  - 🎨 [Tailwind CSS](https://tailwindcss.com) and [shadcn/ui](https://ui.shadcn.com) for the frontend components.
-  - 🤖 An automatically generated frontend client.
-  - 🧪 [Playwright](https://playwright.dev) for end-to-end testing.
-  - 🦇 Dark mode support.
-- ☁️ [FastAPI Cloud](https://fastapicloud.com) for deployment.
-- 🐋 [Docker Compose](https://www.docker.com) for local services and self-hosted deployment.
-  - 📞 [Traefik](https://traefik.io) as a reverse proxy with automatic HTTPS.
-- 🔒 Secure password hashing by default.
-- 🔑 JWT (JSON Web Token) authentication.
-- 📫 Email-based password recovery.
-- ✉️ [React Email](https://react.email) for email templates.
-- 📬 [Mailpit](https://mailpit.axllent.org) for local email testing during development.
-- ✅ Tests with [Pytest](https://pytest.org).
-- 🏭 CI (continuous integration) and CD (continuous deployment) based on GitHub Actions.
+Upstream / original template documentation is preserved in [`README_FastApi.md`](./README_FastApi.md) and [`development.md`](./development.md).
 
-### Dashboard Login
+## Stack
 
-![Dashboard login screenshot](img/login.png)
+- **Backend:** Python, FastAPI, SQLModel
+- **Database:** PostgreSQL
+- **Frontend:** React, TypeScript, TanStack Router
+- **Local run:** Docker Compose
 
-### Dashboard - Admin
+## Quick start (Docker Compose)
 
-![Admin dashboard screenshot](img/dashboard.png)
+Requirements: Docker Desktop with Compose v2.
 
-### Dashboard - Items
+```bash
+# From the repository root
+docker compose run --rm backend bash scripts/prestart.sh
+docker compose up -d
+```
 
-![Items dashboard screenshot](img/dashboard-items.png)
+Then open:
 
-### Dashboard - Dark Mode
+| URL | Purpose |
+|-----|---------|
+| http://localhost:8000 | App (frontend + API) |
+| http://localhost:8000/docs | OpenAPI / Swagger |
+| http://localhost:8080 | Adminer (DB UI) |
+| http://localhost:8025 | Mailpit |
 
-![Dark mode dashboard screenshot](img/dashboard-dark.png)
+After code changes that affect the backend image or built frontend:
 
-### React Email Templates
+```bash
+docker compose up -d --build backend
+docker compose run --rm backend bash scripts/prestart.sh
+```
 
-![Email templates screenshot](img/react-email.png)
+> **Note:** Backend tests use the same local Postgres. The test teardown re-seeds demo users, but if login fails after a test run, re-run `prestart.sh`.
 
-### Mailpit - Local Email Testing
+## Demo users (seeded)
 
-![Mailpit screenshot](img/mailpit.png)
+Created idempotently by `init_db` during `prestart` (`backend/app/core/db.py`):
 
-### Interactive API Documentation
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@example.com` | `changethis` | admin |
+| `manager@example.com` | `changethis` | manager |
+| `member@example.com` | `changethis` | member |
 
-![API docs](img/docs.png)
+Passwords match `.env` defaults (`FIRST_SUPERUSER` / `FIRST_SUPERUSER_PASSWORD`). Change them before any real deployment.
 
-## How to Use It
+## Permission matrix
 
-Click the **Use this template** button at the top of this page to create a new repository.
+| Action | Permission key | admin | manager | member |
+|--------|----------------|:-----:|:-------:|:------:|
+| List all users | `users:list` | ✓ | ✓ | ✗ |
+| Create user | `users:create` | ✓ | ✗ | ✗ |
+| Update any user / assign roles | `users:update` | ✓ | ✗ | ✗ |
+| Delete user | `users:delete` | ✓ | ✗ | ✗ |
+| View metrics | `metrics:read` | ✓ | ✓ | ✗ |
+| Update own profile | `profile:update` | ✓ | ✓ | ✓ |
+| System (global) settings | `settings:write` | ✓ | ✗ | ✗ |
 
-## Backend Development
+Public signup always creates a **member**. Own-profile routes (`/users/me`) stay available to every authenticated active user.
 
-Backend docs: [backend/README.md](./backend/README.md).
+## Authorization approach
 
-## Frontend Development
+### Where roles live
 
-Frontend docs: [frontend/README.md](./frontend/README.md).
+- Users have a `role` column: `admin` | `manager` | `member` (source of truth).
+- Legacy `is_superuser` is kept in sync (`True` only when `role == admin`) for gradual migration.
+- Alembic migration: `backend/app/alembic/versions/b7e3a1c94d20_add_user_role.py`.
 
-## Deployment
+### Where checks live (backend)
 
-FastAPI Cloud deployment: [deployment.md](./deployment.md).
+1. **Policy map** — `backend/app/core/rbac.py`  
+   Single `ROLE_PERMISSIONS` dict maps each role to permission strings.
+2. **Dependency** — `require_permission("users:list")` in `backend/app/api/deps.py`  
+   Used on protected routes; denied attempts are logged at WARNING (user id, role, permission, path) and return **403**.
+3. **Object-level rules** — e.g. reading another user requires `users:list`; self-service profile updates use `profile:update`.
 
-Self-hosted deployment with Docker Compose: [deployment-docker-compose.md](./deployment-docker-compose.md).
+The UI is not a security boundary. Direct API calls must still pass these checks.
 
-## Development
+### How the frontend learns capabilities
 
-General development docs: [development.md](./development.md).
+- `UserPublic` (including `GET /users/me`) includes `role` and `permissions: string[]`, computed from the same backend policy map.
+- Frontend helper `can(user, permission)` in `frontend/src/lib/permissions.ts` drives:
+  - sidebar visibility
+  - route guards (`beforeLoad` → `/forbidden`)
+  - admin create/edit/delete actions
 
-This includes the local FastAPI and Vite workflow, Docker Compose services, `.env` configuration, and more.
+### AuthZ flow
 
-## Release Notes
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as FastAPI route
+    participant Auth as get_current_user
+    participant RBAC as require_permission
+    participant Policy as ROLE_PERMISSIONS
+    participant Handler as Route handler
 
-Check the file [release-notes.md](./release-notes.md).
+    Client->>API: HTTP + Bearer JWT
+    API->>Auth: Validate token, load User
+    Auth-->>API: User (or 401/403)
+    API->>RBAC: Depends(require_permission("…"))
+    RBAC->>Policy: permissions_for(user.role)
+    alt missing permission
+        RBAC-->>Client: 403 + warning log
+    else allowed
+        RBAC-->>Handler: User
+        Handler-->>Client: 200 / business result
+    end
+```
+
+## Migrations
+
+```bash
+docker compose run --rm backend bash scripts/prestart.sh
+# runs: alembic upgrade head + initial_data (seed)
+```
+
+New schema changes should be added under `backend/app/alembic/versions/`.
+
+## Tests
+
+Focused RBAC scenarios: `backend/tests/api/routes/test_rbac.py`.
+
+```bash
+docker compose run --rm \
+  -v "${PWD}/backend/app:/app/backend/app" \
+  -v "${PWD}/backend/tests:/app/backend/tests" \
+  backend bash -c "coverage run -m pytest tests/api/routes/test_rbac.py -q"
+```
+
+Or, with source synced (e.g. `docker compose watch` / mounted app+tests):
+
+```bash
+docker compose exec backend bash scripts/tests-start.sh tests/api/routes/test_rbac.py
+```
+
+## Project docs
+
+| File | Contents |
+|------|----------|
+| [`TASK.md`](./TASK.md) | Assignment brief |
+| [`PLAN.md`](./PLAN.md) | Implementation plan and phase status |
+| [`DECISION.md`](./DECISION.md) | Detailed architecture decisions (D1–D5) |
+| [`NOTES.md`](./NOTES.md) | Trade-offs, scope notes, follow-ups |
+| [`docs/adr/`](./docs/adr/) | Short ADRs + diagram |
+| [`README_FastApi.md`](./README_FastApi.md) | Original upstream template README |
 
 ## License
 
