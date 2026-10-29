@@ -2,7 +2,7 @@ from sqlmodel import Session, create_engine, select
 
 from app import crud
 from app.core.config import settings
-from app.models import User, UserCreate
+from app.models import Role, User, UserCreate
 
 engine = create_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
 
@@ -28,6 +28,13 @@ def init_db(session: Session) -> None:
         user_in = UserCreate(
             email=settings.FIRST_SUPERUSER,
             password=settings.FIRST_SUPERUSER_PASSWORD,
-            is_superuser=True,
+            role=Role.ADMIN,
         )
         user = crud.create_user(session=session, user_create=user_in)
+    elif user.role != Role.ADMIN or not user.is_superuser:
+        # Ensure the configured first superuser stays an admin after RBAC migration.
+        user.role = Role.ADMIN
+        user.is_superuser = True
+        session.add(user)
+        session.commit()
+        session.refresh(user)

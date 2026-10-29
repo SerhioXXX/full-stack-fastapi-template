@@ -4,12 +4,32 @@ from typing import Any
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+from app.models import (
+    Item,
+    ItemCreate,
+    Role,
+    User,
+    UserCreate,
+    UserUpdate,
+    sync_role_and_superuser,
+)
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
+    # Explicit non-member role wins; legacy is_superuser=True promotes default member → admin.
+    if user_create.role != Role.MEMBER:
+        role_flags = sync_role_and_superuser(role=user_create.role)
+    elif user_create.is_superuser:
+        role_flags = sync_role_and_superuser(is_superuser=True)
+    else:
+        role_flags = sync_role_and_superuser(role=Role.MEMBER)
+
     db_obj = User.model_validate(
-        user_create, update={"hashed_password": get_password_hash(user_create.password)}
+        user_create,
+        update={
+            "hashed_password": get_password_hash(user_create.password),
+            **role_flags,
+        },
     )
     session.add(db_obj)
     session.commit()
@@ -19,11 +39,23 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
 
 def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
     user_data = user_in.model_dump(exclude_unset=True)
-    extra_data = {}
+    extra_data: dict[str, Any] = {}
     if "password" in user_data:
         password = user_data["password"]
         hashed_password = get_password_hash(password)
         extra_data["hashed_password"] = hashed_password
+
+    role = user_data.pop("role", None)
+    is_superuser = user_data.pop("is_superuser", None)
+    if role is not None or is_superuser is not None:
+        extra_data.update(
+            sync_role_and_superuser(
+                role=role,
+                is_superuser=is_superuser,
+                current_role=db_user.role,
+            )
+        )
+
     db_user.sqlmodel_update(user_data, update=extra_data)
     session.add(db_user)
     session.commit()

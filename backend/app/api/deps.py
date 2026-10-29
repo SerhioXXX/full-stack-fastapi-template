@@ -1,8 +1,9 @@
-from collections.abc import Generator
+import logging
+from collections.abc import Callable, Generator
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
@@ -11,7 +12,10 @@ from sqlmodel import Session
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine
-from app.models import TokenPayload, User
+from app.core.rbac import has_permission
+from app.models import Role, TokenPayload, User
+
+logger = logging.getLogger(__name__)
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
@@ -49,8 +53,30 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+def require_permission(permission: str) -> Callable[[Request, User], User]:
+    """FastAPI dependency factory: allow only users granted ``permission``."""
+
+    def dependency(request: Request, current_user: CurrentUser) -> User:
+        if not has_permission(current_user, permission):
+            logger.warning(
+                "Access denied user_id=%s role=%s permission=%s path=%s",
+                current_user.id,
+                current_user.role,
+                permission,
+                request.url.path,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="The user doesn't have enough privileges",
+            )
+        return current_user
+
+    return dependency
+
+
 def get_current_active_superuser(current_user: CurrentUser) -> User:
-    if not current_user.is_superuser:
+    """Legacy admin gate; prefer ``require_permission`` for new code."""
+    if current_user.role != Role.ADMIN:
         raise HTTPException(
             status_code=403, detail="The user doesn't have enough privileges"
         )

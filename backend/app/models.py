@@ -1,7 +1,9 @@
 import uuid
 from datetime import UTC, datetime
+from enum import Enum
 
 from pydantic import EmailStr
+from sqlalchemy import Column, Enum as SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -9,11 +11,48 @@ def get_datetime_utc() -> datetime:
     return datetime.now(UTC)
 
 
+class Role(str, Enum):
+    ADMIN = "admin"
+    MANAGER = "manager"
+    MEMBER = "member"
+
+
+def sync_role_and_superuser(
+    *,
+    role: Role | None = None,
+    is_superuser: bool | None = None,
+    current_role: Role | None = None,
+) -> dict[str, Role | bool]:
+    """Keep role as source of truth; sync legacy is_superuser.
+
+    - Explicit role wins and sets is_superuser (True only for admin).
+    - Legacy clients that only set is_superuser=True with default/member role
+      are promoted to admin.
+    - Legacy is_superuser=False on an admin demotes role to member.
+    """
+    updates: dict[str, Role | bool] = {}
+    if role is not None:
+        updates["role"] = role
+        updates["is_superuser"] = role == Role.ADMIN
+    elif is_superuser is not None:
+        if is_superuser:
+            updates["role"] = Role.ADMIN
+            updates["is_superuser"] = True
+        else:
+            demoted_role = (
+                Role.MEMBER if current_role in (None, Role.ADMIN) else current_role
+            )
+            updates["role"] = demoted_role
+            updates["is_superuser"] = False
+    return updates
+
+
 # Shared properties
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
+    role: Role = Field(default=Role.MEMBER, index=True, max_length=20)
     full_name: str | None = Field(default=None, max_length=255)
 
 
@@ -33,6 +72,7 @@ class UserUpdate(SQLModel):
     email: EmailStr | None = Field(default=None, max_length=255)
     is_active: bool | None = None
     is_superuser: bool | None = None
+    role: Role | None = None
     full_name: str | None = Field(default=None, max_length=255)
     password: str | None = Field(default=None, min_length=8, max_length=128)
 
@@ -50,6 +90,20 @@ class UpdatePassword(SQLModel):
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    # Store enum *values* (admin/manager/member) as VARCHAR, not enum member names.
+    role: Role = Field(
+        default=Role.MEMBER,
+        sa_column=Column(
+            SAEnum(
+                Role,
+                values_callable=lambda enum: [item.value for item in enum],
+                native_enum=False,
+                length=20,
+            ),
+            nullable=False,
+            index=True,
+        ),
+    )
     hashed_password: str
     created_at: datetime | None = Field(default_factory=get_datetime_utc)
     items: list[Item] = Relationship(back_populates="owner", cascade_delete=True)
